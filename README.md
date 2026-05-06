@@ -63,3 +63,92 @@ fn main() {
         println!("Result: {}", eval(expr)); // 11
     }
 }
+More examples are available in the examples/ directory.
+
+Getting Started
+Prerequisites
+A supported OS: Linux, macOS, Windows (experimental).
+
+LLVM 16+ (optional; the compiler ships with a vendored copy for most platforms).
+
+Installation
+From source (recommended for now):
+
+bash
+git clone https://github.com/carpel-lang/carpel.git
+cd carpel
+cargo build --release
+./target/release/carp --help
+Pre‑built binaries will be available with the first public release. Check the releases page for updates.
+
+Your First Project
+bash
+carp new hello
+cd hello
+# Edit src/main.cp
+carp run
+Project structure:
+
+text
+hello/
+├── Carpel.toml
+└── src/
+    └── main.cp
+Documentation
+The complete language manual is available at carpel-lang.org/docs.
+A few key pages:
+
+Language Tour
+
+Arenas and Memory Management
+
+Concurrency
+
+Async Programming
+
+FFI Guide
+
+For contributors, see the compiler architecture overview.
+
+Community
+Discord: Join the conversation
+
+GitHub Discussions: Ask questions & share ideas
+
+Issues: Bug reports & feature requests
+
+We follow a Code of Conduct to ensure a welcoming and respectful environment.
+
+Contributing
+Carpel is an open‑source project and welcomes contributions of all forms.
+
+Start with the Contributing Guide.
+
+Good first issues are tagged good first issue.
+
+The compiler is written in Rust, with the standard library in a mix of Carpel and Rust. A solid understanding of compilers is helpful, but not required—there are plenty of tasks in tests, documentation, and tooling.
+
+Roadmap
+Carpel is in active development. Milestones towards 0.1.0 include:
+
+Core language specification
+
+Parser and semantic analysis
+
+Full region/lifetime inference
+
+Arena allocator runtime
+
+Concurrency primitives
+
+Async support
+
+Self‑hosting (compiler in Carpel)
+
+See the project board for live tracking.
+
+License
+Carpel is licensed under the MIT License.
+The standard library and compiler are distributed under the same terms.
+
+Carpel is not a replacement for Rust—it's an experiment in making safety mundane, not heroic.
