@@ -1,0 +1,674 @@
+Table of Contents
+Introduction
+1.1 What is Carpel?
+1.2 Design Principles
+1.3 How Carpel Differs from Rust
+
+Getting Started
+2.1 Hello, World!
+2.2 Basic Syntax Overview
+
+Variables, Types, and Mutability
+3.1 Variable Bindings
+3.2 Primitive Types
+3.3 Mutability
+3.4 Constants
+
+Ownership and References
+4.1 Ownership and Moves
+4.2 References: ref and mut
+4.3 Lifetime Inference
+4.4 No Explicit Lifetimes
+4.5 Interior Mutability
+
+Control Flow
+5.1 if and else
+5.2 loop
+5.3 while
+5.4 for
+5.5 match
+
+Functions
+6.1 Function Definitions
+6.2 Parameters and Return Values
+6.3 Closures
+
+User-Defined Types
+7.1 Structs
+7.2 Enums
+7.3 Methods
+
+Traits and Generics
+8.1 Defining Traits
+8.2 Implementing Traits
+8.3 Generic Functions and Simplified Constraints
+8.4 Associated Types
+
+Memory Management
+9.1 Stack Allocation
+9.2 Heap Allocation: Box and Arc
+9.3 Arenas
+9.4 Arena Allocation API
+9.5 Advanced Arena Patterns
+
+Concurrency
+10.1 Threads
+10.2 Channels
+10.3 Shared Mutable State with Shared<T>
+10.4 Automatic Sendability Inference
+
+Asynchronous Programming
+11.1 async and await
+11.2 The Task<T> Type
+11.3 Implicit Pinning
+11.4 Running Async Code
+
+Unsafe Code and Interoperability
+12.1 unsafe Blocks and Functions
+12.2 Calling C from Carpel
+12.3 Exporting Carpel Functions to C
+
+Standard Library
+13.1 Collections
+13.2 I/O
+13.3 Synchronization
+13.4 Arena Support
+
+Building and Compiling
+14.1 Project Structure
+14.2 The carp Build Tool
+14.3 Compiler Options
+
+Complete Examples
+15.1 Expression Parser with Arenas
+15.2 Microkernel Snippet
+15.3 HTTP Server
+
+Appendix
+16.1 Operator Table
+16.2 Common Types
+16.3 Differences from Rust
+
+1. Introduction
+1.1 What is Carpel?
+Carpel is a compiled, statically typed systems programming language that provides memory safety without a garbage collector and without the syntactic ceremony often associated with such guarantees. It is designed to be a pragmatic successor to Rust, keeping its core strengths (ownership, zero-cost abstractions, fearless concurrency) while drastically reducing complexity in everyday code.
+
+1.2 Design Principles
+Simplicity is a safety feature. The language infers as much as possible so that the programmer can focus on logic rather than annotation.
+
+Arenas, not individual allocations. Temporary data lives in explicitly scoped regions that are freed in bulk, eliminating most Box, Rc, and Pin usage.
+
+Inferred lifetimes. References are safe, but the programmer never writes 'a.
+
+Concurrency by default. Channels and shared state work without manual Send/Sync annotations.
+
+Unsafe code is isolated. Low-level operations are possible but must be wrapped in unsafe blocks, which are rarely needed.
+
+1.3 How Carpel Differs from Rust
+Feature	Rust	Carpel
+Lifetimes	Explicit 'a annotations	Fully inferred
+Shared references	&T	ref T
+Exclusive references	&mut T	mut T
+Temporary allocation	Box, Rc, Cell	arena blocks
+Generic constraints	where T: ...	Short inline constraints
+Concurrency markers	Send, Sync	Implicit from type structure
+Async pinning	Pin<Box<dyn Future>>	Automatic micro‑arenas
+2. Getting Started
+2.1 Hello, World!
+carpel
+fn main() {
+    println!("Hello, Carpel!");
+}
+2.2 Basic Syntax Overview
+Statements end with a semicolon ;.
+
+Blocks are delimited by curly braces { }.
+
+Comments: // for single line, /* */ for multi-line.
+
+Identifiers follow the pattern [a-zA-Z_][a-zA-Z0-9_]*.
+
+Keywords are reserved: fn, let, mut, ref, arena, async, await, unsafe, struct, enum, trait, impl, match, if, else, loop, while, for, return, as, const, type.
+
+3. Variables, Types, and Mutability
+3.1 Variable Bindings
+Variables are introduced with let. The type can be omitted if it can be inferred.
+
+carpel
+let x = 5;          // i32
+let y: f64 = 3.14;
+3.2 Primitive Types
+Type	Description	Example
+i8, i16, i32, i64, i128	Signed integers	42
+u8, u16, u32, u64, u128	Unsigned integers	0xFF_u8
+f32, f64	Floating point	3.14
+bool	Boolean	true, false
+char	Unicode scalar (4 bytes)	'€'
+str	String slice (reference only)	"hello"
+()	Unit type	()
+3.3 Mutability
+By default, bindings are immutable. Add mut before the variable name to make it mutable.
+
+carpel
+let mut counter = 0;
+counter = counter + 1;
+3.4 Constants
+Constants are declared with const and require an explicit type.
+
+carpel
+const MAX_SIZE: usize = 1024;
+4. Ownership and References
+4.1 Ownership and Moves
+Every value has a single owner at any given time. Assignments and function calls transfer ownership (move) by default. Types that implement the Copy trait (primitives, small tuples) are copied instead.
+
+carpel
+let s1 = "hello".to_owned();   // String (heap-allocated)
+let s2 = s1;                   // s1 is moved; s1 no longer usable
+// println!("{}", s1);        // Error: value moved
+4.2 References: ref and mut
+To lend a value without transferring ownership, use references. Carpel has two reference flavors:
+
+ref T – a shared, always‑immutable reference (akin to &T in Rust). Multiple ref references to the same data can coexist.
+
+mut T – an exclusive, mutable reference (akin to &mut T). While a mut reference exists, no other reference (neither ref nor mut) to the same data may exist.
+
+carpel
+let mut vec = vec![1, 2, 3];
+let r1: ref Vec<i32> = &vec;
+let r2: ref Vec<i32> = &vec;   // fine: two shared refs
+// let m: mut Vec<i32> = &mut vec;  // Error: cannot borrow mutably while shared refs active
+4.3 Lifetime Inference
+The compiler assigns an abstract region to every value and reference. Regions form a partial order based on scopes, arena blocks, and stack frames. A reference is valid only if its region is guaranteed not to outlive the region of the data it points to. The programmer never writes region/lifetime annotations. When the compiler cannot safely infer the relationship (extremely rare in idiomatic code), it emits a clear error message and suggests refactoring.
+
+Example:
+
+carpel
+fn shortest<'a>(a: ref str, b: ref str) -> ref str {
+    if a.len() < b.len() { a } else { b }
+} // No 'a needed!
+4.4 No Explicit Lifetimes
+Carpel does not allow explicit lifetime parameters like 'a. The only exception is the global 'static lifetime for data that lives for the entire program (string literals, constants). In rare advanced cases, a special 'region syntax can be used to tie a reference to a named arena, but it is intentionally hidden from the standard library documentation and used only for low‑level extensions.
+
+4.5 Interior Mutability
+Carpel does not provide RefCell or Cell. Mutability through a shared reference is not allowed. If multiple owners need to mutate data, use Shared<T> (see §10.3) designed for concurrent or complex ownership scenarios. For sequential code, restructure ownership or use arenas.
+
+5. Control Flow
+5.1 if and else
+carpel
+if x > 0 {
+    println!("positive");
+} else if x == 0 {
+    println!("zero");
+} else {
+    println!("negative");
+}
+if is an expression and can be used to assign a value:
+
+carpel
+let label = if temperature > 30 { "hot" } else { "cool" };
+5.2 loop
+Infinite loop with break and continue.
+
+carpel
+let mut i = 0;
+loop {
+    i += 1;
+    if i > 5 { break; }
+}
+5.3 while
+carpel
+while i > 0 {
+    i -= 1;
+}
+5.4 for
+Iterates over collections using a reference by default.
+
+carpel
+for item in &vector {
+    println!("{}", item);
+}
+// To consume the vector: for item in vector { ... }
+5.5 match
+Exhaustive pattern matching with guards.
+
+carpel
+match value {
+    1 => println!("one"),
+    2 | 3 => println!("two or three"),
+    n if n > 10 => println!("big"),
+    _ => println!("anything else"),
+}
+6. Functions
+6.1 Function Definitions
+carpel
+fn add(a: i32, b: i32) -> i32 {
+    a + b   // tail expression: no semicolon -> return value
+}
+Functions that do not return a value have the return type () (which can be omitted).
+
+6.2 Parameters and Return Values
+Parameters are immutable unless declared mut. Return types are written after ->. The return keyword can be used for early returns.
+
+carpel
+fn factorial(n: u64) -> u64 {
+    if n == 0 { return 1; }
+    n * factorial(n - 1)
+}
+6.3 Closures
+Closures are anonymous functions that can capture their environment. They use || syntax and type inference.
+
+carpel
+let add_one = |x| x + 1;
+let result = add_one(5); // 6
+
+let mut offset = 10;
+let add_offset = |x| x + offset; // captures offset by shared reference
+// offset = 20; // Error: cannot modify captured variable while closure holds a ref
+Closures that capture references are themselves tied to the scope of the captured data.
+
+7. User-Defined Types
+7.1 Structs
+carpel
+struct Point {
+    x: f64,
+    y: f64,
+}
+let p = Point { x: 1.0, y: 2.0 };
+Structs can contain references (but such structs will typically be allocated inside an arena to satisfy lifetime rules).
+
+7.2 Enums
+carpel
+enum IpAddr {
+    V4(u8, u8, u8, u8),
+    V6(String),
+}
+let home = IpAddr::V4(127, 0, 0, 1);
+7.3 Methods
+Methods are defined inside impl blocks. Use self, ref self (implicit &self), or mut self (exclusive reference).
+
+carpel
+impl Point {
+    fn new(x: f64, y: f64) -> Point { Point { x, y } }
+    fn distance_from_origin(ref self) -> f64 {
+        (self.x * self.x + self.y * self.y).sqrt()
+    }
+}
+8. Traits and Generics
+8.1 Defining Traits
+carpel
+trait Addable {
+    fn add(ref self, other: ref Self) -> Self;
+}
+8.2 Implementing Traits
+carpel
+impl Addable for i32 {
+    fn add(ref self, other: ref i32) -> i32 {
+        *self + *other
+    }
+}
+8.3 Generic Functions and Simplified Constraints
+Generic parameters are listed in angle brackets after the function name. Constraints are placed inline, separated by commas. No where clause is needed for simple cases.
+
+carpel
+fn sum<T: Addable + Copy>(slice: &[T]) -> T {
+    let mut total = slice[0];
+    for elem in &slice[1..] {
+        total = total.add(elem);
+    }
+    total
+}
+If constraints become too long (> 3 traits), the compiler issues a style warning suggesting extraction into a super‑trait. This keeps code clean without sacrificing power.
+
+8.4 Associated Types
+Traits can declare associated types using the type keyword.
+
+carpel
+trait Iterator {
+    type Item;
+    fn next(mut self) -> Option<Self::Item>;
+}
+Generic Associated Types (GATs) are not part of Carpel 0.1; they are planned for future versions.
+
+9. Memory Management
+Carpel offers three layers of memory management, each well‑suited to different lifetimes.
+
+9.1 Stack Allocation
+All local variables whose size is known at compile time reside on the stack. They follow the ownership rules described in §4.
+
+9.2 Heap Allocation: Box and Arc
+Box<T> – uniquely owns a heap‑allocated value. Similar to Rust’s Box.
+
+Arc<T> – atomically reference‑counted smart pointer for shared immutable data. Used when multiple threads need read‑only access.
+
+carpel
+let b = Box::new(Point { x: 1.0, y: 2.0 });
+let shared = Arc::new(vec![1, 2, 3]);
+9.3 Arenas
+An arena is a memory region with a well‑defined lifetime. All objects allocated inside an arena block are freed in a single operation when the block exits. References between arena‑allocated objects are freely allowed because they all share the same region’s lifetime.
+
+Syntax
+carpel
+arena <name>: Arena(<memory_source>) {
+    // statements
+}
+<memory_source> can be:
+
+A mutable byte slice (e.g., buffer.as_mut_slice()).
+
+A size expression (e.g., Arena(4096)), which allocates a temporary buffer on the stack (if the size is small and constant) or on the global heap.
+
+Arena Allocation API
+Inside an arena, you call methods on the arena handle:
+
+arena.alloc(value) – allocates value and returns a ref T.
+
+arena.alloc_mut(value) – allocates and returns a mut T (exclusive reference).
+
+arena.alloc_array(T, count) – allocates an array filled with default values, returns ref [T].
+
+arena.alloc_array_mut(T, count) – returns mut [T].
+
+carpel
+fn process() -> Vec<i32> {
+    arena temp: Arena(global_buffer) {
+        let a = temp.alloc(42);
+        let b = temp.alloc(99);
+        let mut sum = *a + *b;
+        let mut result = Vec::new();
+        result.push(sum);
+        result
+    } // all arena objects are freed here, result lives on because it's a Vec (heap)
+}
+9.4 Advanced Arena Patterns
+Nested arenas: You may nest arenas; the compiler ensures that references from an outer arena never point into an inner one (because the inner region’s lifetime ends first). References from inner to outer are allowed if the outer region survives.
+
+Recursive structures: Trees and graphs are natural in arenas:
+
+carpel
+struct Node {
+    value: i32,
+    left: Option<ref Node>,
+    right: Option<ref Node>,
+}
+// Create inside an arena:
+arena graph: Arena(buffer) {
+    let root = arena.alloc(Node { value: 1, left: None, right: None });
+    let child = arena.alloc(Node { value: 2, left: None, right: None });
+    // root.left = Some(child);  // if root was mut
+}
+10. Concurrency
+10.1 Threads
+Threads are spawned with spawn, which takes a closure without arguments.
+
+carpel
+spawn(|| {
+    println!("Hello from a thread!");
+});
+The closure captures its environment by move. The compiler automatically verifies that all captured values are sendable (i.e., they do not contain non‑'static references).
+
+10.2 Channels
+Channels provide multi‑producer, single‑consumer communication.
+
+carpel
+let (tx, rx) = channel();
+spawn(move || {
+    tx.send(42);
+});
+let received = rx.recv(); // Some(42), or None when all senders dropped
+Both tx and rx are implicitly sendable types.
+
+10.3 Shared Mutable State with Shared<T>
+When multiple threads need to mutate the same data, use Shared<T>. Internally it is an Arc over a mutual‑exclusion primitive.
+
+carpel
+let counter = Shared::new(0);
+let mut handles = Vec::new();
+for _ in 0..10 {
+    let c = counter.clone();
+    spawn(move || {
+        let mut val = c.lock();
+        *val += 1;
+    });
+}
+// After joining threads...
+println!("{}", counter.lock()); // 10
+Shared<T> is the only form of interior mutability Carpel provides at the language level. Sequential code should avoid mutability through shared references.
+
+10.4 Automatic Sendability Inference
+The programmer never writes Send or Sync. Instead, the type system classifies values as:
+
+unique – contains no references (or only 'static refs), safe to transfer across threads.
+
+shared – may contain non‑'static references, cannot be sent to another thread unless wrapped in a sendable container.
+
+When a value is moved into a spawn block or sent over a channel, the compiler checks these properties and reports violations with clear messages.
+
+11. Asynchronous Programming
+11.1 async and await
+Functions that perform asynchronous operations are declared with async fn. They return a Task<T> type. Inside, await suspends execution without blocking the thread.
+
+carpel
+async fn fetch_user(id: u64) -> Result<User, Error> {
+    let url = format!("/users/{}", id);
+    let response = http::get(&url).await?;
+    Ok(response.json::<User>()?)
+}
+11.2 The Task<T> Type
+Task<T> represents a future that yields a T. It can be:
+
+Awaited with .await.
+
+Composed with combinators like join! and select!.
+
+Dropped to cancel the task.
+
+11.3 Implicit Pinning
+In Rust, async functions that contain references across .await points require Pin. Carpel eliminates this by automatically allocating any variable that is referenced across a suspension point in a task‑local micro‑arena. The programmer never sees the pinning mechanism; the compiler handles it transparently.
+
+carpel
+async fn example() -> i32 {
+    let mut x = 42;
+    let r = &mut x;         // r is automatically arena‑allocated if needed
+    other_async().await;
+    *r += 1;
+    x
+}
+This makes async code straight‑forward, with no Box::pin or unsafe traps.
+
+11.4 Running Async Code
+An async runtime is responsible for polling tasks. The standard library provides a basic single‑threaded executor.
+
+carpel
+async fn main() {
+    // ... async logic ...
+}
+// In a binary, the runtime boots the async main automatically.
+12. Unsafe Code and Interoperability
+12.1 unsafe Blocks and Functions
+Operations that cannot be statically verified (dereferencing raw pointers, calling C functions, modifying static mut variables) must be placed inside unsafe { } blocks. Functions containing such operations can be declared unsafe to require callers to also use unsafe.
+
+carpel
+let fb_ptr = 0xB8000 as *mut u16;
+unsafe {
+    *fb_ptr = 0x0F00 | b'H' as u16;
+}
+Unsafe code should be isolated and well‑documented.
+
+12.2 Calling C from Carpel
+Use extern "C" blocks to declare foreign functions.
+
+carpel
+extern "C" {
+    fn printf(format: *const u8, ...) -> i32;
+}
+fn main() {
+    unsafe {
+        printf("Hello from C!\n".as_ptr());
+    }
+}
+12.3 Exporting Carpel Functions to C
+Mark functions with #[no_mangle] and pub extern "C" to make them callable from C.
+
+carpel
+#[no_mangle]
+pub extern "C" fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+13. Standard Library
+The standard library is called std and is automatically available.
+
+13.1 Collections
+Vec<T> – growable array.
+
+String – UTF‑8 string.
+
+HashMap<K, V> – hash table.
+
+HashSet<T> – hash set.
+
+BTreeMap<K, V> – ordered map.
+
+carpel
+let mut vec = Vec::new();
+vec.push(1);
+let map = HashMap::new();
+map.insert("key", "value");
+13.2 I/O
+std::io::stdin(), std::io::stdout()
+
+std::fs – file operations.
+
+std::net – TCP/UDP sockets.
+
+carpel
+use std::fs;
+let contents = fs::read_to_string("input.txt")?;
+13.3 Synchronization
+channel() – multi‑producer, single‑consumer channel.
+
+Shared<T> – mutex‑like shared mutable state.
+
+Arc<T> – atomically reference‑counted pointer.
+
+13.4 Arena Support
+std::arena::Arena – the basic arena type, can be constructed from a slice.
+
+std::arena::SizedArena<N> – an arena backed by a stack‑allocated array.
+
+14. Building and Compiling
+14.1 Project Structure
+A Carpel project consists of a Carpel.toml at the root and source files in src/.
+
+text
+my_project/
+├── Carpel.toml
+└── src/
+    └── main.cp
+14.2 The carp Build Tool
+bash
+carp new my_project    # create a new project
+carp build             # compile debug build
+carp build --release   # optimized build
+carp run               # build and run
+carp test              # run tests
+14.3 Compiler Options
+--target – cross‑compilation target.
+
+--release – enable optimizations.
+
+--emit asm – output assembly.
+
+--emit llvm-ir – output LLVM IR.
+
+15. Complete Examples
+15.1 Expression Parser with Arenas
+A recursive descent parser that builds an AST inside an arena.
+
+carpel
+enum Expr {
+    Number(i32),
+    Plus(ref Expr, ref Expr),
+    Times(ref Expr, ref Expr),
+}
+
+fn parse_expr(arena: &Arena, input: &str) -> Option<ref Expr> {
+    // ... parsing logic ...
+    // Example: arena.alloc(Expr::Number(42))
+}
+
+fn eval(e: ref Expr) -> i32 {
+    match *e {
+        Expr::Number(n) => n,
+        Expr::Plus(l, r) => eval(l) + eval(r),
+        Expr::Times(l, r) => eval(l) * eval(r),
+    }
+}
+
+fn main() {
+    let buffer: [u8; 8192] = [0; 8192];
+    arena parse_arena: Arena(buffer) {
+        if let Some(expr) = parse_expr(&parse_arena, "3+4*2") {
+            println!("Result: {}", eval(expr)); // 11
+        }
+    }
+}
+15.2 Microkernel Snippet
+Initializing a GDT and spawning a user service channel. (See earlier discussion for full snippet; here the essence is that all kernel structures live in a static arena, no Box required, and channels are used for IPC.)
+
+carpel
+static EARLY_MEM: [u8; 256_KB] = [0; 256_KB];
+
+fn kernel_main() {
+    arena kernel_heap: Arena(EARLY_MEM) {
+        init_gdt(&kernel_heap);
+        let (tx, rx) = channel();
+        spawn_user_service(tx, &kernel_heap);
+        event_loop(rx);
+    }
+}
+15.3 HTTP Server
+carpel
+async fn main() -> Result<(), Error> {
+    let listener = TcpListener::bind("127.0.0.1:8080").await?;
+    loop {
+        let (mut stream, _) = listener.accept().await?;
+        spawn(move || async {
+            let mut buf = [0u8; 512];
+            let _ = stream.read(&mut buf).await;
+            let response = "HTTP/1.1 200 OK\r\n\r\nHello, world!";
+            let _ = stream.write(response.as_bytes()).await;
+        });
+    }
+}
+16. Appendix
+16.1 Operator Table
+Operator	Description
++ - * / %	Arithmetic
+== != < > <= >=	Comparison
+&& || !	Logical
+& | ^ << >>	Bitwise
+=	Assignment
+& &mut	Reference creation (aliases for ref and mut syntax)
+*	Dereference
+.	Field/method access
+as	Type cast
+16.2 Common Types
+Type	Description
+Vec<T>	Growable array
+String	Owned UTF‑8 string
+Option<T>	Some(T) or None
+Result<T, E>	Ok(T) or Err(E)
+Box<T>	Unique heap allocation
+Arc<T>	Shared atomic reference count
+Shared<T>	Shared mutable state (mutex)
+Arena	Memory region for bulk allocation
+Task<T>	Asynchronous future
+16.3 Differences from Rust
+Feature	Rust	Carpel
+Explicit lifetimes	Required on structs/fns with refs	None (inferred)
+Reference types	&T, &mut T	ref T, mut T (or &T, &mut T as sugar)
+Interior mutability	Cell, RefCell, Mutex	Only Shared<T> (for concurrency)
+Async pinning	Pin, Box::pin	Automatic task‑local arenas
+Concurrency traits	Send, Sync (manual impl)	Inferred from structure
+Generic bounds	where T: Foo + Bar (multi‑line)	Short inline list (warning if too complex)
+Temporary allocation	Box, Rc, Arc sprinkled	arena blocks dominate

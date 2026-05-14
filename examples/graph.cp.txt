@@ -1,0 +1,36 @@
+În Carpel, arborele sintactic al unui parser, scenele unui joc sau grafurile de dependențe pot fi construite direct cu referințe mutuale într-o arenă. Nu e nevoie de Rc sau RefCell
+
+// graph.cp
+use std::collections::Vec;
+
+struct Node {
+    id: i32,
+    neighbors: Vec<ref Node>,
+}
+
+fn main() {
+    let buffer: [u8; 4096] = [0; 4096];
+    arena graph_arena: Arena(buffer) {
+        // Alocăm nodurile direct în arenă
+        let n1 = graph_arena.alloc(Node { id: 1, neighbors: Vec::new() });
+        let n2 = graph_arena.alloc(Node { id: 2, neighbors: Vec::new() });
+        let n3 = graph_arena.alloc(Node { id: 3, neighbors: Vec::new() });
+
+        // Creăm legături circulare (fără RefCell!)
+        n1.neighbors.push(n2);
+        n2.neighbors.push(n3);
+        n3.neighbors.push(n1); // ciclu
+
+        // Parcurgem cu un simplu while (evităm bucla infinită cu limită)
+        let mut current: ref Node = n1;
+        let mut steps = 0;
+        while steps < 6 {
+            println!("Visiting node {}", current.id);
+            if current.neighbors.is_empty() {
+                break;
+            }
+            current = current.neighbors[0];
+            steps += 1;
+        }
+    } // toate nodurile sunt eliberate automat
+}
