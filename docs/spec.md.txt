@@ -1,206 +1,207 @@
-1. Gramatica EBNF completă a limbajului Carpel
-Această gramatică acoperă întregul limbaj Carpel (v0.1.0), inclusiv conceptele unice: arene, referințe ref/mut, async/await și unsafe. Am folosit notația tradițională EBNF, cu:
+1. The complete EBNF grammar of the Carpel language
+This grammar covers the entire Carpel language (v0.1.0), including the unique concepts: arenas, ref/mut references, async/await, and unsafe. We used traditional EBNF notation, with:
 
-[...] – opțional
+[...] – optional
 
-{...} – repetiție (zero sau mai multe)
+{...} – repetition (zero or more)
 
-(...) – grupare
+(...) – grouping
 
-| – alternativă
+| – alternative
 
-terminalele scrise între ghilimele drepte "..."
+terminals written between straight quotes "..."
 
-Structura generală
+General structure
 ebnf
-program        = { top-level-item } ;
+program = { top-level-item } ;
 
 top-level-item = fn-def | struct-def | enum-def | trait-def | impl-block
-               | const-def | use-decl | extern-block
-               ;
+| const-def | use-decl | extern-block
+;
 
-use-decl       = "use" path ";" ;
-path           = ident { "::" ident } ;
-Definiții
+use-decl = "use" path ";" ;
+path = ident { "::" ident } ;
+Definitions
 ebnf
-fn-def         = "fn" ident [ generic-params ] "(" [ param-list ] ")" [ "->" type ] block ;
+fn-def = "fn" ident [ generic-params ] "(" [ param-list ] ")" [ "->" type ] block ;
 
-param-list     = param { "," param } ;
-param          = ident ":" type ;
+param-list = param { "," param } ;
+param = identity ":" type ;
 
 generic-params = "<" generic-param { "," generic-param } ">" ;
-generic-param  = ident [ ":" trait-bounds ] ;
+generic-param = ident [ ":" trait-bounds ] ;
 
-trait-bounds   = trait-ref { "+" trait-ref } ;
-trait-ref      = ident [ "<" type-list ">" ] ;
+trait-bounds = trait-ref { "+ trait-ref } ;
+trait-ref = ident [ "<" type-list ">" ] ;
 
-struct-def     = "struct" ident [ generic-params ] struct-body ;
-struct-body    = "{" { field ";" } "}" | ";" ;
-field          = ident ":" type ;
+struct-def = "struct" ident [ generic-params ] struct-body ;
+struct-body = "{" { field ";" } "}" | ";" ;
+field = identity ":" type ;
 
-enum-def       = "enum" ident [ generic-params ] "{" variant { "," variant } [ "," ] "}" ;
-variant        = ident [ tuple-type ] | ident "{" { field ";" } "}" ;
+enum-def = "enum" ident [ generic-params ] "{" variant { "," variant } [ "," ] "}" ;
+variant = ident [ tuple-type ] | ident "{" { field ";" } "}" ;
 
-trait-def      = "trait" ident [ generic-params ] "{" { trait-item } "}" ;
-trait-item     = fn-sig | type-alias ;
-fn-sig         = "fn" ident [ generic-params ] "(" [ param-list ] ")" [ "->" type ] ;
-type-alias     = "type" ident ";" ;
+trait-def = "trait" ident [ generic-params ] "{" { trait-item } "}" ;
+trait-item = fn-sig | type-alias ;
+fn-sig = "fn" ident [ generic-params ] "(" [ param-list ] ")" [ "->" type ] ;
+type-alias = "type" ident ";" ;
 
-impl-block     = "impl" [ generic-params ] trait-ref? "for" type "{" { fn-def } "}" ;
+impl-block = "impl" [ generic-params ] trait-ref ? "for" type "{" { fn-def } "}" ;
 
-const-def      = "const" ident ":" type "=" expression ";" ;
+const-def = "const" ident ":" type "=" expression ";" ;
 
-extern-block   = "extern" string-literal "{" { extern-fn } "}" ;
-extern-fn      = "fn" ident "(" [ param-list ] ")" [ "->" type ] ";" ;
-Tipuri și expresii
+external-block = "extern" string-literal "{" { external-fn } "}" ;
+external-fn = "fn" ident "(" [ param-list ] ")" [ "->" type ] ";" ;
+Types and expressions
 ebnf
-type           = base-type | "ref" base-type | "mut" base-type ;
-base-type      = ident [ "<" type-list ">" ]
-               | "(" type ")"
-               | tuple-type
-               | fn-type
-               ;
-type-list      = type { "," type } ;
-tuple-type     = "(" type { "," type } ")" ;
-fn-type        = "fn" "(" [ type-list ] ")" [ "->" type ] ;
+type = base-type | "ref" base-type | "mut" base-type ;
+base-type = ident [ "<" type-list ">" ] 
+| "(" type ")" 
+| tuple-type 
+| fn-type 
+;
+type-list = type { "," type } ;
+tuple-type = "(" type { "," type } ")" ;
+fn-type = "fn" "(" [ type-list ] ")" [ "->" type ] ;
 
-expression     = literal
-               | path
-               | operator-expression
-               | call-expression
-               | field-access
-               | tuple-expr
-               | block-expr
-               | if-expr
-               | match-expr
-               | loop-expr
-               | while-expr
-               | for-expr
-               | return-expr
-               | arena-block
-               | async-block
-               | unsafe-block
-               | closure
-               ;
+expression = literal 
+| path 
+| operator-expression 
+| call-expression 
+| field-access 
+| tuple-expr 
+| block-expr 
+| if-expr 
+| match-expr 
+| loop-expr 
+| while-expr 
+| for-expr 
+| return-expr 
+| arena-block 
+| async-block 
+| unsafe-block 
+| closure 
+;
 
-literal        = integer-literal | float-literal | string-literal | bool-literal | unit-literal ;
+literal = integer-literal | float-literal | string-literal | bool-literal | unit-literal ;
 
-block-expr     = block ;
-block          = "{" { statement } "}" ;
+block-expr = block ;
+block = "{" { statement } "}" ;
 
-statement      = let-stmt | expression ";" | item ;
+statement = let-stmt | expression ";" | item
 
-let-stmt       = "let" [ "mut" ] ident [ ":" type ] "=" expression ";" ;
+let-stmt = "let" [ "mut" ] ident [ ":" type ] "=" expression ";" ;
 
-if-expr        = "if" expression block [ "else" ( block | if-expr ) ] ;
-match-expr     = "match" expression "{" { match-arm } "}" ;
-match-arm      = pattern [ "if" expression ] "=>" ( expression "," | block ) ;
+if-expr = "if" expression block [ "else" ( block | if-expr ) ] ;
+match-expr = "match" expression "{" { match-arm } "}" ;
+match-arm = pattern [ "if" expression ] "=>" ( expression "," | block ) ;
 
-loop-expr      = "loop" block ;
-while-expr     = "while" expression block ;
-for-expr       = "for" pattern "in" expression block ;
+loop-expr = "loop" block ;
+while-expr = "while" expression block ;
+for-expr = "for" pattern "in" expression block ;
 
-return-expr    = "return" [ expression ] ";" ;
+return-expr = "return" [ expression ] ";" ;
 
-arena-block    = "arena" ident ":" "Arena" "(" expression ")" block ;
+arena-block = "arena" ident ":" "Arena" "(" expression ")" block ;
 
-async-block    = "async" block ;            // async closure or block (pentru Task)
+async-block = "async" block ; // async closure or block (for Task)
 
-unsafe-block   = "unsafe" block ;
+unsafe-block = "unsafe" block ;
 
-closure        = "|" [ closure-param-list ] "|" [ "->" type ] block ;
+closure = "|" [ closure-param-list ] "|" [ "->" type ] block ;
 closure-param-list = ident [ ":" type ] { "," ident [ ":" type ] } ;
 
 call-expression = expression "(" [ expression-list ] ")" ;
 expression-list = expression { "," expression } ;
 
-field-access   = expression "." ( ident | integer-literal ) ;
+field-access = expression "." (ident | integer-literal ) ;
 
-operator-expression = expression binary-operator expression
-                    | unary-operator expression
-                    ;
+operator-expression = expression binary-operator expression 
+| unary-operator expression
+;
 binary-operator = "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">="
-                | "&&" | "||" | "&" | "|" | "^" | "<<" | ">>" | "as"
-                ;
-unary-operator  = "-" | "!" | "*" | "&" | "&mut" ;
-Observații:
+| "&&" | "||" | "&" | "|" | "^" | "<<" | ">>" | "as"
+;
+unary-operator = "-" | "!" | "*" | "&" | "&mut" ;
+Notes:
 
-"ref" și "mut" sunt cuvinte-cheie rezervate în poziția de tip; nu pot fi utilizate ca identificatori normali.
+"ref" and "mut" are reserved keywords in type position; they cannot be used as normal identifiers.
 
-"arena" este recunoscută ca instrucțiune specială care creează un nou domeniu de vizibilitate.
+"arena" is recognized as a special statement that creates a new scope.
 
-Funcțiile async se scriu ca funcții obișnuite cu prefix async fn.
+Async functions are written as regular functions with the async fn prefix.
 
-2. Tabelul de interacțiune al referințelor ref și mut
-Acest tabel rezumă ce referințe pot coexista într-un anumit punct al programului, respectând regula fundamentală: un mut T este o referință exclusivă; niciun alt acces (citire sau scriere) nu este permis cât timp aceasta există.
+2. Interaction table of ref and mut references
+This table summarizes which references can coexist at a given point in the program, respecting the fundamental rule: a mut T is an exclusive reference; no other access (read or write) is allowed while it exists.
 
-Acțiune / Context	ref T activ	mut T activ
-Creare ref T (împrumut partajat)	Permis oricâte (citire multiplă)	Interzis – nu poți crea un ref când există deja un mut
-Creare mut T (împrumut exclusiv)	Interzis – dacă există un ref activ, nu se poate crea un mut	Permis unul singur (exclusivitate)
-Citire prin ref T	Permis	Nu se aplică (nu există)
-Scriere prin mut T	Nu se aplică (nu există)	Permis
-Transferul proprietății (move)	Interzis cât timp există referințe (partajate sau exclusive) active	Interzis cât timp referința este activă
-Durata de viață	Poate fi mai scurtă decât datele referite; nu poate supraviețui datelor	La fel, nu poate supraviețui datelor și nici nu poate coexista cu alte referințe
-Aceste reguli sunt verificate static de către borrow checker-ul integrat în compilator (după etapa de inferență a regiunilor). Nu există RefCell pentru a ocoli aceste reguli; dacă ai nevoie de mutabilitate partajată, folosești Shared<T> (destinat concurenței, dar poate fi utilizat și pe un singur fir, deși este mai greoi).
+Action / Context ref T active mute T active
+Create ref T (shared borrowing) Allowed as many as (multiple reads) Forbidden – you cannot create a ref when a mute already exists
+Create mute T (exclusive borrowing) Forbidden – if there is an active ref, you cannot create a mute Allowed only one (exclusivity)
+Read via ref T Allowed Not applicable (does not exist)
+Write via mute T Not applicable (does not exist) Allowed
+Transfer of ownership (move) Forbidden as long as there are active (shared or exclusive) references Forbidden as long as the reference is active
+Lifetime Can be shorter than the referenced data; cannot survive data Likewise, it cannot survive data and cannot coexist with other references
+These rules are statically checked by the compiler's built-in borrow checker (after the region inference stage). There is no RefCell to bypass these rules; if you need shared mutability, use Shared<T> (intended for concurrency, but can also be used on a single thread, although it is more cumbersome).
 
-Exemplu de eroare comună:
+Example of a common error:
 
 carpel
 let mut data = 42;
 let r1: ref i32 = &data;
-let r2: mut i32 = &mut data;   // EROARE: nu poți împrumuta mutabil cât timp
-                               // există referințe partajate active
-Cazul metodelor:
-Când o metodă primește ref self, primești un ref Self (acces citire); când primește mut self, primești un mut Self (acces scriere exclusiv). Nu poți apela o metodă care necesită mut self dacă ai doar o referință ref.
+let r2: mut i32 = &mut data; // ERROR: cannot borrow mutable while
+// there are active shared references
+Method case:
+When a method receives a ref self, you receive a ref Self (read access); when it receives mut self, you receive a mut Self (exclusive write access). You cannot call a method that requires mut self if you only have a ref reference.
 
-3. Sistemul de reguli pentru async – „Implicit Pinning”
-În Carpel, programarea asincronă nu expune niciodată conceptul de Pin. Compilatorul se ocupă automat de stabilitatea adreselor pentru variabilele locale care sunt referite după un punct de suspendare (.await). Această abordare se numește “implicit pinning” și se bazează pe o micro-arenă asociată fiecărui task.
+3. The async rule system – “Implicit Pinning”
+In Carpel, asynchronous programming never exposes the concept of Pin. The compiler automatically takes care of address stability for local variables that are referenced after a suspension point (.await). This approach is called “implicit pinning” and is based on a micro-arena associated with each task.
 
-Cum funcționează
-Transformarea funcției async într-un automat de stări:
-O funcție async fn este transformată de compilator într-un tip anonim care implementează trăsătura internă Task. Fiecare punct .await devine o tranziție de stare.
+How it works
+Transforming an async function into a state machine:
+An async fn function is transformed by the compiler into an anonymous type that implements the Task internal trait. Each .await point becomes a state transition.
 
-Detectarea variabilelor auto-referențiale:
-În timpul analizei de flux, compilatorul identifică toate variabilele locale care:
+Detecting self-referential variables:
+During flow analysis, the compiler identifies all local variables that:
 
-Sunt declarate cu let mut (sau sunt mutabile implicit) și
+Are declared with let mut (or are implicitly mutable) and
 
-Sunt referite (prin ref sau mut) într-un punct anterior unui .await, iar acea referință este folosită după .await.
+Are referenced (by ref or mut) at a point before an .await, and that reference is used after the .await.
 
-Aceste variabile sunt numite variabile cu referință suspendată.
+These variables are called suspended-referenced variables.
 
-Relocarea variabilelor într-o micro-arenă per task:
-Pentru fiecare astfel de variabilă, compilatorul:
+Relocating variables in a per-task micro-arena:
+For each such variable, the compiler:
 
-Alocă memoria necesară în cadrul unei micro-arene atașată automatului de stări (numită task-local arena).
+Allocates the required memory within a micro-arena attached to the state machine (called the task-local arena).
 
-Înlocuiește variabila de pe stivă cu un indice/handle către acea locație din arenă.
+Replaces the variable on the stack with an index/handle to that location in the arena.
 
-Astfel, adresa variabilei rămâne fixă pe toată durata de viață a task-ului, chiar dacă automatul este mutat în memorie (de exemplu, când este plasat în coada executorului).
+Thus, the address of the variable remains fixed throughout the lifetime of the task, even if the state machine is moved in memory (for example, when placed in the executor queue).
 
-Micro-arena task-local:
-Această arenă este un buffer intern alocat pe heap (sau pe stivă pentru task-uri mici) la inițierea task-ului. Ea crește monoton doar cât e nevoie, iar eliberarea se face automat când task-ul se termină. Modelul este similar cu un bump allocator, dar complet gestionat de compilator – fără intervenția programatorului.
+Task-local micro-arena:
+This arena is an internal buffer allocated on the heap (or stack for small tasks) at task initiation. It grows monotonically only as needed, and is freed automatically when the task ends. The model is similar to a bump allocator, but completely managed by the compiler – without programmer intervention.
 
-Costuri:
+Costs:
 
-Pentru variabilele care nu sunt niciodată referite peste .await, nu există niciun cost: ele rămân pe stiva automatului.
+For variables that are never referenced over .await, there is no cost: they remain on the automaton stack.
 
-Pentru cele relocate, există o singură alocare în interiorul micro-arenei și accese indirecte (prin pointer). Acestea sunt rare în practică, deoarece majoritatea codului async nu auto-referențiază date peste puncte de așteptare.
+For relocated ones, there is a single allocation inside the micro-arena and indirect accesses (via pointers). These are rare in practice, since most async code does not self-reference data across await points.
 
-Siguranța:
-Compilatorul garantează prin verificările de regiune că nicio referință creată în interiorul task-ului nu poate scăpa în afara lui. Astfel, micro-arena și toate datele ei sunt eliberate corect la finalizarea task-ului, fără posibilitatea de dangling pointers.
+Safety:
+The compiler guarantees through region checks that no reference created inside the task can escape outside it. Thus, the micro-arena and all its data are freed correctly upon task completion, without the possibility of dangling pointers.
 
-Exemplu
+Example
 carpel
-async fn exemplu() -> i32 {
-    let mut x = 42;
-    let r = &mut x;         // referință exclusivă
-    temporar().await;       // suspendare – r este acum într-un punct periculos
-    *r += 1;                // folosire după await
-    x
+async fn example() -> i32 {
+let mut x = 42;
+let r = &mut x; // exclusive reference
+temporary().await; // suspension – r is now at a dangerous point
+*r += 1; // use after await
+x
 }
-În spate, compilatorul produce (pseudocod):
+Behind, the compiler produces (pseudocode):
 
-Înainte de primul await: mută x din stivă în task_arena, actualizează r ca pointer către acea locație.
+Before the first await: move x from the stack to task_arena, update r as a pointer to that location.
 
-După await: reîncarcă r din starea automatului (care a păstrat pointerul) și continuă.
+After the await: reload r from the state machine (which kept the pointer) and continue.
+
